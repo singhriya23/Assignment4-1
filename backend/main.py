@@ -4,8 +4,15 @@ from pdf_parser import pdf_to_markdown
 from gcs_utils import list_files_in_gcs, get_file_content, download_file_from_gcs
 from summarization_gpt import summarize_text_gpt
 from summarization_gemini import summarize_text_gemini
-from summarization_groq import summarize_text_groq
+
+
 app = FastAPI()
+
+# Model mapping dictionary
+SUMMARIZATION_MODELS = {
+    "gpt": summarize_text_gpt,
+    "gemini": summarize_text_gemini 
+}
 
 @app.get("/")
 def read_root():
@@ -31,8 +38,8 @@ def get_file(file_name: str):
         if not content:
             return {"error": "File content is empty"}
 
-        # Automatically summarize the fetched content
-        summary_response = summarize_file(content)
+        # Automatically summarize the fetched content using the default model (GPT)
+        summary_response = summarize_file(content=content, model="gpt")
 
         return {
             "file_name": decoded_file_name,
@@ -50,14 +57,19 @@ def download_file(file_name: str):
     return download_file_from_gcs(decoded_file_name)
 
 @app.post("/summarize_file/")
-def summarize_file(content: str = Body(..., embed=True)):
-    """Takes the markdown content from the frontend and returns its summarized text."""
+def summarize_file(content: str = Body(..., embed=True), model: str = Body("gpt", embed=True)):
+    """Summarizes the given text using the selected model."""
     try:
         if not content.strip():
             return {"error": "File content is empty"}
         
-        # Summarize the content using GPT-4o via LiteLLM
-        summary = summarize_text_gpt(content)
+        if model not in SUMMARIZATION_MODELS:
+            return {"error": f"Invalid model '{model}'. Choose from {list(SUMMARIZATION_MODELS.keys())}"}
+        
+        # Call the appropriate summarization function
+        summarization_function = SUMMARIZATION_MODELS[model]
+        summary = summarization_function(content)
+
         return {"summary": summary}
     
     except Exception as e:

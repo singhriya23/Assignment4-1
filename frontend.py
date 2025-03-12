@@ -4,7 +4,7 @@ import requests
 # FastAPI backend URL
 BASE_URL = "http://127.0.0.1:8000"
 
-st.title("📄 PDF to Markdown Converter")
+st.title("📄 PDF to Markdown Converter & Summarizer")
 
 # Upload PDF
 st.header("Upload a PDF")
@@ -36,7 +36,34 @@ if st.button("View File Content"):
         file_response = requests.get(f"{BASE_URL}/get_file/{selected_file}")
         if file_response.status_code == 200:
             st.subheader("File Content")
-            st.text_area("Markdown Content", file_response.json().get("content"), height=300)
+            file_content = file_response.json().get("content")
+            st.text_area("Markdown Content", file_content, height=300)
+        else:
+            st.error("Failed to fetch file content.")
+
+# Select summarization model
+st.header("Summarization")
+model_options = ["gpt", "gemini"]
+selected_model = st.selectbox("Choose a Summarization Model", model_options)
+
+# Summarize file
+if st.button("Summarize File"):
+    if selected_file:
+        file_response = requests.get(f"{BASE_URL}/get_file/{selected_file}")
+        if file_response.status_code == 200:
+            file_content = file_response.json().get("content")
+
+            if file_content:
+                summarize_payload = {"content": file_content, "model": selected_model}
+                summarize_response = requests.post(f"{BASE_URL}/summarize_file/", json=summarize_payload)
+
+                if summarize_response.status_code == 200:
+                    st.subheader("Summarized Text")
+                    st.text_area("Summary", summarize_response.json().get("summary"), height=200)
+                else:
+                    st.error("Failed to summarize file.")
+            else:
+                st.error("File content is empty.")
         else:
             st.error("Failed to fetch file content.")
 
