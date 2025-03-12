@@ -3,7 +3,7 @@ import requests
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv(dotenv_path="/Users/kaushikj/Desktop/Assignment4-1/backend/.env")
+load_dotenv(dotenv_path=".env")
 CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
 
 # Define Claude API endpoint
@@ -11,6 +11,7 @@ CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 
 def summarize_text_claude(text):
     """Use Claude (Anthropic) to summarize extracted text from a PDF."""
+    print("claude called")
     headers = {
         "x-api-key": CLAUDE_API_KEY,  # Claude API Key
         "anthropic-version": "2023-06-01",  # Required API version

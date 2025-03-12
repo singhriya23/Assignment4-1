@@ -16,3 +16,16 @@ def summarize_text_gpt(text):
         ]
     )
     return response['choices'][0]['message']['content']
+
+'''
+def answer_question_gpt(text, question):
+    """Use GPT-4o Mini to answer questions based on extracted text from a PDF."""
+    response = completion(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an AI assistant that answers questions based on the given document."},
+            {"role": "user", "content": f"Document:\n{text}\n\nAnswer the following question based ONLY on the document above:\n{question}"}
+        ]
+    )
+    return response['choices'][0]['message']['content']'
+'''

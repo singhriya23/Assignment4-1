@@ -3,14 +3,16 @@ import requests
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv(dotenv_path="/Users/kaushikj/Desktop/Assignment4-1/backend/.env")
+load_dotenv(dotenv_path=".env")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+
 
 # Define DeepSeek API endpoint
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 def summarize_text_deepseek(text):
     """Use DeepSeek-Chat to summarize extracted text from a PDF."""
+    print("summarize_text_deepseek function invoked") 
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
         "Content-Type": "application/json"

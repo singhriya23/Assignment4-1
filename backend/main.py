@@ -4,19 +4,24 @@ from pdf_parser import pdf_to_markdown
 from gcs_utils import list_files_in_gcs, get_file_content, download_file_from_gcs
 from summarization_gpt import summarize_text_gpt
 from summarization_gemini import summarize_text_gemini
-
+from summarization_deepseek import summarize_text_deepseek
+from summarization_claude import summarize_text_claude
 
 app = FastAPI()
 
-# Model mapping dictionary
+# Model mapping dictionaries
 SUMMARIZATION_MODELS = {
     "gpt": summarize_text_gpt,
-    "gemini": summarize_text_gemini 
+    "gemini": summarize_text_gemini,
+    "deepseek": summarize_text_deepseek,
+    "claude": summarize_text_claude
 }
+
+
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the FastAPI PDF to Markdown Converter"}
+    return {"message": "Welcome to the FastAPI PDF Processing Service"}
 
 @app.post("/upload_pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -31,14 +36,14 @@ def list_files():
 
 @app.get("/get_file/{file_name:path}")
 def get_file(file_name: str):
-    """Fetches the Markdown file content from GCS and automatically summarizes it."""
+    """Fetches Markdown content from GCS and summarizes it automatically."""
     decoded_file_name = unquote(file_name)
     try:
         content = get_file_content(decoded_file_name)
         if not content:
             return {"error": "File content is empty"}
 
-        # Automatically summarize the fetched content using the default model (GPT)
+        # Automatically summarize the fetched content using GPT
         summary_response = summarize_file(content=content, model="gpt")
 
         return {
@@ -74,3 +79,5 @@ def summarize_file(content: str = Body(..., embed=True), model: str = Body("gpt"
     
     except Exception as e:
         return {"error": f"Failed to summarize file: {str(e)}"}
+
+

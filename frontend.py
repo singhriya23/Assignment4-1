@@ -4,7 +4,7 @@ import requests
 # FastAPI backend URL
 BASE_URL = "http://127.0.0.1:8000"
 
-st.title("📄 PDF to Markdown Converter & Summarizer")
+st.title("📄 PDF to Markdown Converter, Summarizer & Q/A")
 
 # Upload PDF
 st.header("Upload a PDF")
@@ -43,7 +43,7 @@ if st.button("View File Content"):
 
 # Select summarization model
 st.header("Summarization")
-model_options = ["gpt", "gemini"]
+model_options = ["gpt", "gemini","deepseek","claude"]
 selected_model = st.selectbox("Choose a Summarization Model", model_options)
 
 # Summarize file
@@ -66,6 +66,7 @@ if st.button("Summarize File"):
                 st.error("File content is empty.")
         else:
             st.error("Failed to fetch file content.")
+
 
 # Download file
 if st.button("Download File"):
