@@ -20,7 +20,7 @@ def summarize_text_groq(text):
     """Use Groq API via OpenAI SDK to summarize extracted text."""
     try:
         completion = client.chat.completions.create(
-            model="groq-2",  # ✅ Using Groq-supported Mixtral model
+            model="grok-2",  # ✅ Using Groq-supported Mixtral model
             messages=[
                 {"role": "system", "content": "You are an AI that summarizes documents concisely."},
                 {"role": "user", "content": f"Summarize the following document:\n\n{text}"}
