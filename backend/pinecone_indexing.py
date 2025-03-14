@@ -10,6 +10,8 @@ load_dotenv(dotenv_path=".env")
 # Initialize Pinecone with the new method
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
+
+
 # Define index name
 INDEX_NAME = os.getenv("PINECONE_INDEX")
 

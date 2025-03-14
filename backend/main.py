@@ -6,6 +6,13 @@ from summarization_gpt import summarize_text_gpt
 from summarization_gemini import summarize_text_gemini
 from summarization_deepseek import summarize_text_deepseek
 from summarization_claude import summarize_text_claude
+from summarization_groq import summarize_text_groq
+from rag_qa import answer_question_gpt
+from rag_qa_gemini import answer_question_gemini
+from rag_claude import answer_question_claude
+from rag_deepseek import answer_question_deepseek
+from rag_groq import answer_question_groq
+from pinecone_indexing import index_markdown_data  
 
 app = FastAPI()
 
@@ -14,14 +21,21 @@ SUMMARIZATION_MODELS = {
     "gpt": summarize_text_gpt,
     "gemini": summarize_text_gemini,
     "deepseek": summarize_text_deepseek,
-    "claude": summarize_text_claude
+    "claude": summarize_text_claude,
+    "groq": summarize_text_groq
 }
 
-
+QUESTION_ANSWERING_MODELS = {
+    "gpt": answer_question_gpt,
+    "gemini": answer_question_gemini,
+    "deepseek":answer_question_deepseek,
+    "claude":answer_question_claude,
+    "groq":answer_question_groq
+}
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the FastAPI PDF Processing Service"}
+    return {"message": "Welcome to the FastAPI PDF Processing & Q/A Service"}
 
 @app.post("/upload_pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -36,12 +50,15 @@ def list_files():
 
 @app.get("/get_file/{file_name:path}")
 def get_file(file_name: str):
-    """Fetches Markdown content from GCS and summarizes it automatically."""
+    """Fetches Markdown content from GCS, indexes it in Pinecone, and allows Q/A on it."""
     decoded_file_name = unquote(file_name)
     try:
         content = get_file_content(decoded_file_name)
         if not content:
             return {"error": "File content is empty"}
+
+        # ✅ Index the Markdown content into Pinecone before allowing Q/A
+        index_markdown_data(content, decoded_file_name)
 
         # Automatically summarize the fetched content using GPT
         summary_response = summarize_file(content=content, model="gpt")
@@ -49,12 +66,13 @@ def get_file(file_name: str):
         return {
             "file_name": decoded_file_name,
             "content": content,
-            "summary": summary_response["summary"]
+            "summary": summary_response["summary"],
+            "message": "Markdown content retrieved, indexed successfully, and summarized. You can now ask questions."
         }
     
     except Exception as e:
-        return {"error": f"Failed to fetch and summarize file: {str(e)}"}
-    
+        return {"error": f"Failed to fetch and index file: {str(e)}"}
+
 @app.get("/download_file/{file_name:path}")
 def download_file(file_name: str):
     """Provides a file for download from Google Cloud Storage."""
@@ -80,4 +98,21 @@ def summarize_file(content: str = Body(..., embed=True), model: str = Body("gpt"
     except Exception as e:
         return {"error": f"Failed to summarize file: {str(e)}"}
 
+@app.post("/ask_question/")
+def ask_question(question: str = Body(..., embed=True), model: str = Body("gpt", embed=True)):
+    """Handles Q/A on the selected Markdown using Pinecone & different models."""
+    try:
+        if not question.strip():
+            return {"error": "Question cannot be empty"}
 
+        if model not in QUESTION_ANSWERING_MODELS:
+            return {"error": f"Invalid model '{model}'. Choose from {list(QUESTION_ANSWERING_MODELS.keys())}"}
+        
+        # ✅ Use selected model for answering questions based on Markdown content
+        answer_function = QUESTION_ANSWERING_MODELS[model]
+        answer = answer_function(question)
+
+        return {"question": question, "answer": answer}
+    
+    except Exception as e:
+        return {"error": f"Failed to process question: {str(e)}"}

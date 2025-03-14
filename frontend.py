@@ -2,17 +2,22 @@ import streamlit as st
 import requests
 
 # FastAPI backend URL
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://34.57.75.149"
 
 st.title("📄 PDF to Markdown Converter, Summarizer & Q/A")
 
-# Upload PDF
+#upload file 
 st.header("Upload a PDF")
 uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
 if uploaded_file is not None:
     st.write("Uploading and processing...")
-    files = {"file": uploaded_file.getvalue()}
+    
+    # Ensure the filename is passed to the backend
+    files = {
+        "file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
+    }
+    
     response = requests.post(f"{BASE_URL}/upload_pdf/", files=files)
     
     if response.status_code == 200:
@@ -20,6 +25,7 @@ if uploaded_file is not None:
         st.write("Markdown File URL:", response.json().get("gcs_url"))
     else:
         st.error("Failed to process file.")
+
 
 # List files in GCS
 st.header("Available Markdown Files")
@@ -43,7 +49,7 @@ if st.button("View File Content"):
 
 # Select summarization model
 st.header("Summarization")
-model_options = ["gpt", "gemini","deepseek","claude"]
+model_options = ["gpt", "gemini", "deepseek", "claude","groq"]
 selected_model = st.selectbox("Choose a Summarization Model", model_options)
 
 # Summarize file
@@ -67,6 +73,25 @@ if st.button("Summarize File"):
         else:
             st.error("Failed to fetch file content.")
 
+# Select Q/A model
+st.header("Ask a Question")
+qa_model_options = ["gpt", "gemini", "deepseek", "claude","groq"]
+selected_qa_model = st.selectbox("Choose a Q/A Model", qa_model_options)
+
+# Ask question
+question = st.text_input("Enter your question")
+if st.button("Get Answer"):
+    if selected_file and question:
+        qa_payload = {"question": question, "model": selected_qa_model}
+        qa_response = requests.post(f"{BASE_URL}/ask_question/", json=qa_payload)
+
+        if qa_response.status_code == 200:
+            st.subheader("Answer")
+            st.write(qa_response.json().get("answer"))
+        else:
+            st.error("Failed to process the question.")
+    else:
+        st.error("Please select a file and enter a question.")
 
 # Download file
 if st.button("Download File"):
