@@ -1,103 +1,86 @@
-from fastapi import FastAPI, File, UploadFile, Body
-from urllib.parse import unquote
-from pdf_parser import pdf_to_markdown
-from gcs_utils import list_files_in_gcs, get_file_content, download_file_from_gcs
-from summarization_gpt import summarize_text_gpt
-from summarization_gemini import summarize_text_gemini
-from rag_qa import answer_question_gpt
-from rag_qa_gemini import answer_question_gemini
-
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from pdf_parser import pdf_to_markdown  # Your existing pdf_to_markdown function
+from gcs_utils import list_files_in_gcs, download_file_from_gcs
+from io import BytesIO
+import urllib.parse
 
 app = FastAPI()
-
-# Model mapping dictionaries
-SUMMARIZATION_MODELS = {
-    "gpt": summarize_text_gpt,
-    "gemini": summarize_text_gemini
-}
-
-QUESTION_ANSWERING_MODELS = {
-    "gpt": answer_question_gpt,
-    "gemini": answer_question_gemini
-}
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the FastAPI PDF Processing & Q/A Service"}
 
-@app.post("/upload_pdf/")
-async def upload_pdf(file: UploadFile = File(...)):
-    """Handles PDF uploads, converts them to Markdown, and uploads to GCS."""
-    markdown_info = await pdf_to_markdown(file)
-    return {"message": "File processed successfully", "gcs_url": markdown_info["gcs_url"]}
+@app.get("/list_pdf_files")
+def list_files_in_pdf_folder():
+    """List all PDF files from the 'pdf_files' folder in GCS."""
+    folder_name = "pdf_files"
+    files = list_files_in_gcs(folder_name)
+    return {"files": files}
 
-@app.get("/list_files/")
-def list_files():
-    """Lists all files in the GCS bucket."""
-    return {"files": list_files_in_gcs()}
-
-@app.get("/get_file/{file_name:path}")
-def get_file(file_name: str):
-    """Fetches Markdown content from GCS, indexes it in Pinecone, and allows Q/A on it."""
-    decoded_file_name = unquote(file_name)
+@app.post("/upload_and_parse_pdf/")
+async def upload_and_parse_pdf(file: UploadFile = File(...), parse_method: str = Query("pymupdf", enum=["pymupdf", "mistral", "docling"])):
+    """Upload a PDF, parse it using a selected method, and convert it to Markdown."""
     try:
-        content = get_file_content(decoded_file_name)
-        if not content:
-            return {"error": "File content is empty"}
-
-        # Automatically summarize the fetched content using GPT
-        summary_response = summarize_file(content=content, model="gpt")
-
-        return {
-            "file_name": decoded_file_name,
-            "content": content,
-            "summary": summary_response["summary"],
-            "message": "Markdown content retrieved, indexed successfully, and summarized. You can now ask questions."
-        }
-    
+        if parse_method == "pymupdf":
+            markdown_content = await pdf_to_markdown(file)
+        elif parse_method == "mistral":
+            print("awaiting code")
+        elif parse_method == "docling":
+            print("awaiting code")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid parse method selected.")
     except Exception as e:
-        return {"error": f"Failed to fetch and index file: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Error while parsing the PDF: {str(e)}")
+    
+    return {"markdown_content": markdown_content}
 
-@app.get("/download_file/{file_name:path}")
-def download_file(file_name: str):
-    """Provides a file for download from Google Cloud Storage."""
-    decoded_file_name = unquote(file_name)
-    return download_file_from_gcs(decoded_file_name)
 
-@app.post("/summarize_file/")
-def summarize_file(content: str = Body(..., embed=True), model: str = Body("gpt", embed=True)):
-    """Summarizes the given text using the selected model."""
+
+# Helper function to handle BytesIO and pass the original file name
+async def pdf_to_markdown_from_bytes(file: BytesIO, filename: str):
+    """Extracts text from a PDF-like object and returns it as markdown."""
+    
+    # Create a mock UploadFile from the BytesIO object
+    class MockUploadFile:
+        def __init__(self, file_like_object, filename):
+            self.file = file_like_object
+            self.filename = filename  # Pass the original filename
+
+        async def read(self):
+            return self.file.read()
+
+    # Pass the BytesIO as a mock UploadFile object to the original pdf_to_markdown function
+    mock_file = MockUploadFile(file, filename)
+    return await pdf_to_markdown(mock_file)
+
+@app.get("/parse_gcs_pdf/")
+async def parse_gcs_pdf(file_name: str = Query(...), parse_method: str = Query("pymupdf", enum=["pymupdf", "mistral", "docling"])):
+    """Parse a selected PDF file from GCS."""
     try:
-        if not content.strip():
-            return {"error": "File content is empty"}
+        # Download the file content as bytes from GCS
+        file_content = download_file_from_gcs(file_name)  # This returns file content as bytes
+      
+        if not file_content:
+            raise HTTPException(status_code=404, detail="File not found in GCS")
         
-        if model not in SUMMARIZATION_MODELS:
-            return {"error": f"Invalid model '{model}'. Choose from {list(SUMMARIZATION_MODELS.keys())}"}
-        
-        # Call the appropriate summarization function
-        summarization_function = SUMMARIZATION_MODELS[model]
-        summary = summarization_function(content)
+        if file_name.startswith("pdf_files/"):
+            file_name = file_name[len("pdf_files/"):]
 
-        return {"summary": summary}
-    
+        # Convert the byte content into a file-like object using BytesIO
+        file_like_object = BytesIO(file_content)
+        
+        # Call the corresponding parsing method based on the `parse_method` parameter
+        if parse_method == "pymupdf":
+            markdown_content = await pdf_to_markdown_from_bytes(file_like_object, file_name)
+        elif parse_method == "mistral":
+            markdown_content = await pdf_to_markdown_mistral(file_like_object, file_name)
+        elif parse_method == "docling":
+            markdown_content = await pdf_to_markdown_docling(file_like_object, file_name)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid parse method selected.")
+        
     except Exception as e:
-        return {"error": f"Failed to summarize file: {str(e)}"}
-
-@app.post("/ask_question/")
-def ask_question(question: str = Body(..., embed=True), model: str = Body("gpt", embed=True)):
-    """Handles Q/A on the selected Markdown using Pinecone & different models."""
-    try:
-        if not question.strip():
-            return {"error": "Question cannot be empty"}
-
-        if model not in QUESTION_ANSWERING_MODELS:
-            return {"error": f"Invalid model '{model}'. Choose from {list(QUESTION_ANSWERING_MODELS.keys())}"}
-        
-        # ✅ Use selected model for answering questions based on Markdown content
-        answer_function = QUESTION_ANSWERING_MODELS[model]
-        answer = answer_function(question)
-
-        return {"question": question, "answer": answer}
+        raise HTTPException(status_code=500, detail=f"Error while parsing the PDF: {str(e)}")
     
-    except Exception as e:
-        return {"error": f"Failed to process question: {str(e)}"}
+    return {"markdown_content": markdown_content}
+

@@ -17,3 +17,6 @@ pip-delete-this-directory.txt
 *.log
 *.cache/
 backend/starry-tracker-449020-f2-98e23064a0ed.json
+/backend/__pycache__
+/backend/__pycache__
+/backend/__pycache__
