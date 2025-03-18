@@ -4,33 +4,21 @@ from pdf_parser import pdf_to_markdown
 from gcs_utils import list_files_in_gcs, get_file_content, download_file_from_gcs
 from summarization_gpt import summarize_text_gpt
 from summarization_gemini import summarize_text_gemini
-from summarization_deepseek import summarize_text_deepseek
-from summarization_claude import summarize_text_claude
-from summarization_groq import summarize_text_groq
 from rag_qa import answer_question_gpt
 from rag_qa_gemini import answer_question_gemini
-from rag_claude import answer_question_claude
-from rag_deepseek import answer_question_deepseek
-from rag_groq import answer_question_groq
-from pinecone_indexing import index_markdown_data  
+
 
 app = FastAPI()
 
 # Model mapping dictionaries
 SUMMARIZATION_MODELS = {
     "gpt": summarize_text_gpt,
-    "gemini": summarize_text_gemini,
-    "deepseek": summarize_text_deepseek,
-    "claude": summarize_text_claude,
-    "groq": summarize_text_groq
+    "gemini": summarize_text_gemini
 }
 
 QUESTION_ANSWERING_MODELS = {
     "gpt": answer_question_gpt,
-    "gemini": answer_question_gemini,
-    "deepseek":answer_question_deepseek,
-    "claude":answer_question_claude,
-    "groq":answer_question_groq
+    "gemini": answer_question_gemini
 }
 
 @app.get("/")
@@ -56,9 +44,6 @@ def get_file(file_name: str):
         content = get_file_content(decoded_file_name)
         if not content:
             return {"error": "File content is empty"}
-
-        # ✅ Index the Markdown content into Pinecone before allowing Q/A
-        index_markdown_data(content, decoded_file_name)
 
         # Automatically summarize the fetched content using GPT
         summary_response = summarize_file(content=content, model="gpt")

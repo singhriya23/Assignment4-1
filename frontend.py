@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # FastAPI backend URL
-BASE_URL = "http://34.57.75.149"
+BASE_URL = "http://127.0.0.1:8000"
 
 st.title("📄 PDF to Markdown Converter, Summarizer & Q/A")
 
@@ -49,7 +49,7 @@ if st.button("View File Content"):
 
 # Select summarization model
 st.header("Summarization")
-model_options = ["gpt", "gemini", "deepseek", "claude","groq"]
+model_options = ["gpt", "gemini"]
 selected_model = st.selectbox("Choose a Summarization Model", model_options)
 
 # Summarize file
@@ -75,7 +75,7 @@ if st.button("Summarize File"):
 
 # Select Q/A model
 st.header("Ask a Question")
-qa_model_options = ["gpt", "gemini", "deepseek", "claude","groq"]
+qa_model_options = ["gpt", "gemini"]
 selected_qa_model = st.selectbox("Choose a Q/A Model", qa_model_options)
 
 # Ask question
