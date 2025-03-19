@@ -1,83 +1,223 @@
 import streamlit as st
 import requests
 
-# FastAPI backend URL
-BASE_URL = "http://127.0.0.1:8000"
+# FastAPI Backend URL
+FASTAPI_URL = "http://127.0.0.1:8000"
 
-st.title("📄 PDF to Markdown Converter, Summarizer & Q/A")
+st.title("📄 PDF Processing & Q/A Service")
 
-# Upload PDF
-st.header("Upload a PDF")
-uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+# Sidebar navigation
+option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file"])
 
-if uploaded_file is not None:
-    st.write("Uploading and processing...")
-    files = {"file": uploaded_file.getvalue()}
-    response = requests.post(f"{BASE_URL}/upload_pdf/", files=files)
+
+# ✅ Upload & Parse a PDF
+if option == "Upload & Parse PDF":
+    st.subheader("📤 Upload a PDF File for Parsing")
+
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
+
+    # Select the parsing method
+    parse_method = st.selectbox(
+        "Select Parsing Method",
+        ["pymupdf", "mistral", "docling"],
+        index=0
+    )
+
+    if uploaded_file is not None:
+        file_name = uploaded_file.name  # Retain the original file name
+
+        if st.button("🚀 Upload & Parse"):
+            # Prepare the file upload
+            files = {
+                "file": (file_name, uploaded_file.getvalue(), "application/pdf")
+            }
+            
+            # Include the parse method as a query parameter
+            response = requests.post(
+                f"{FASTAPI_URL}/upload_and_parse_pdf/?parse_method={parse_method}",
+                files=files
+            )
+
+            if response.status_code == 200:
+                markdown_content = response.json().get("markdown_content", "")
+                st.success(f"✅ File **{file_name}** parsed successfully using **{parse_method}**!")
+                st.subheader("📜 Extracted Markdown Content:")
+                st.markdown(markdown_content)
+            else:
+                st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
+
+# ✅ Parse a Selected PDF from GCS
+elif option == "Parse GCS PDF":
+    st.subheader("📜 Select a PDF from GCS for Parsing")
+
+    # Fetch the list of files from the FastAPI endpoint
+    response = requests.get(f"{FASTAPI_URL}/list_pdf_files")
     
     if response.status_code == 200:
-        st.success("File processed successfully!")
-        st.write("Markdown File URL:", response.json().get("gcs_url"))
-    else:
-        st.error("Failed to process file.")
+        files = response.json().get("files", [])
+        
+        if files:
+            # Let the user select a file from the list
+            selected_file = st.selectbox("Choose a PDF file:", files)
 
-# List files in GCS
-st.header("Available Markdown Files")
-list_response = requests.get(f"{BASE_URL}/list_files/")
-if list_response.status_code == 200:
-    files_list = list_response.json().get("files", [])
-    selected_file = st.selectbox("Select a file", files_list)
-else:
-    st.error("Failed to fetch files from storage.")
-
-# View file content
-if st.button("View File Content"):
-    if selected_file:
-        file_response = requests.get(f"{BASE_URL}/get_file/{selected_file}")
-        if file_response.status_code == 200:
-            st.subheader("File Content")
-            file_content = file_response.json().get("content")
-            st.text_area("Markdown Content", file_content, height=300)
-        else:
-            st.error("Failed to fetch file content.")
-
-# Select summarization model
-st.header("Summarization")
-model_options = ["gpt", "gemini","deepseek","claude"]
-selected_model = st.selectbox("Choose a Summarization Model", model_options)
-
-# Summarize file
-if st.button("Summarize File"):
-    if selected_file:
-        file_response = requests.get(f"{BASE_URL}/get_file/{selected_file}")
-        if file_response.status_code == 200:
-            file_content = file_response.json().get("content")
-
-            if file_content:
-                summarize_payload = {"content": file_content, "model": selected_model}
-                summarize_response = requests.post(f"{BASE_URL}/summarize_file/", json=summarize_payload)
-
-                if summarize_response.status_code == 200:
-                    st.subheader("Summarized Text")
-                    st.text_area("Summary", summarize_response.json().get("summary"), height=200)
-                else:
-                    st.error("Failed to summarize file.")
-            else:
-                st.error("File content is empty.")
-        else:
-            st.error("Failed to fetch file content.")
-
-
-# Download file
-if st.button("Download File"):
-    if selected_file:
-        download_response = requests.get(f"{BASE_URL}/download_file/{selected_file}", stream=True)
-        if download_response.status_code == 200:
-            st.download_button(
-                label="Click to Download",
-                data=download_response.content,
-                file_name=selected_file.split("/")[-1],
-                mime="text/markdown"
+            # Select the parsing method
+            parse_method = st.selectbox(
+                "Select Parsing Method",
+                ["pymupdf", "mistral", "docling"],
+                index=0
             )
+
+            if selected_file and st.button("🚀 Parse Selected PDF"):
+                # Request to parse the selected file from GCS with the selected parse method
+                response = requests.get(
+                    f"{FASTAPI_URL}/parse_gcs_pdf",
+                    params={"file_name": selected_file, "parse_method": parse_method}
+                )
+
+                if response.status_code == 200:
+                    # If parsing is successful, display the extracted markdown content
+                    markdown_content = response.json().get("markdown_content", "")
+                    st.success(f"✅ File **{selected_file}** parsed successfully using **{parse_method}**!")
+                    st.subheader("📜 Extracted Markdown Content:")
+                    st.markdown(markdown_content)
+                else:
+                    # Show error if something went wrong with parsing
+                    st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
         else:
-            st.error("Failed to download file.")
+            st.warning("❌ No PDF files available for parsing.")
+    else:
+        # Show an error if the list of PDFs cannot be fetched
+        st.error("❌ Failed to fetch PDF list.")
+
+
+
+# Your existing logic to select the chunking method
+elif option == "Select chunking method":
+    st.subheader("📜 Select an extracted PDF from GCS for chunking")
+
+    # Fetch the list of extracted files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_extracted_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+        if files:
+            # Dropdown to select a file
+            selected_file = st.selectbox("Choose a file:", files)
+
+            # Dropdown to select chunking strategy
+            strategy = st.selectbox("Select chunking strategy:", ["fixed", "sentence", "sliding"])
+
+            # Process file button
+            if st.button("Process File"):
+                with st.spinner("Processing..."):
+                    fetch_response = requests.get(
+                        f"{FASTAPI_URL}/fetch_file/",
+                        params={"file_name": selected_file, "strategy": strategy}
+                    )
+
+                    if fetch_response.status_code == 200:
+                        st.success(f"✅ File '{selected_file}' processed successfully with {strategy} chunking!")
+                    else:
+                        st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("No files found in GCS.")
+    else:
+        st.error("Failed to fetch extracted files.")
+
+elif option == "Select chunked output file":
+    st.subheader("📂 Select a Chunked Output File")
+
+    # Fetch the list of chunked files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_chunked_output_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+
+        if files:
+            # Dropdown to select a chunked file
+            selected_file = st.selectbox("Choose a file:", files)
+
+            # Button to fetch file content and trigger embeddings
+            if st.button("🔍 Fetch & Generate Embeddings"):
+                with st.spinner(f"Fetching content and generating embeddings for '{selected_file}'..."):
+                    # Fetch file content and initiate embedding generation
+                    fetch_response = requests.get(
+                        f"{FASTAPI_URL}/fetch_file_content",
+                        params={"file_name": selected_file}
+                    )
+
+                    if fetch_response.status_code == 200:
+                        # Display the embedding initiation message
+                        st.success(f"✅ Embedding generation initiated for '{selected_file}'!")
+
+                        # Display file name and status
+                        file_name = fetch_response.json().get("file_name", "")
+                        status = fetch_response.json().get("status", "")
+                        st.write(f"**File:** {file_name}")
+                        st.write(f"**Status:** {status}")
+                    
+                    else:
+                        st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("No chunked files found.")
+    else:
+        st.error("Failed to fetch chunked files.")
+
+
+elif option == "Select embedded output file":
+    st.subheader("📂 Select Embedded Output File")
+
+    # Fetch the list of embedded files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_embedded_output_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+        
+        if files:
+            # Dropdown to select an embedded file
+            selected_file = st.selectbox("Choose an embedded file:", files)
+
+            # Text input for the search query
+            query = st.text_input("🔍 Enter your search query:", "")
+
+            # Optional quarter filter
+            quarter_filter = st.text_input("📅 Enter quarter filter (optional):", "")
+
+            # Number of top results to fetch
+            top_n = st.slider("🔢 Number of top results:", min_value=1, max_value=10, value=5)
+
+            # Button to fetch and search the file content
+            if st.button("📜 Fetch & Search Embedded File Content"):
+                if not query.strip():
+                    st.warning("⚠️ Please enter a search query.")
+                else:
+                    with st.spinner(f"Fetching and searching in '{selected_file}'..."):
+                        
+                        # Fetch content of the selected file with the query
+                        fetch_response = requests.get(
+                            f"{FASTAPI_URL}/fetch_embedded_file_content",
+                            params={
+                                "file_name": selected_file,
+                                "query": query,
+                                "quarter_filter": quarter_filter if quarter_filter.strip() else None,
+                                "top_n": top_n
+                            }
+                        )
+
+                        if fetch_response.status_code == 200:
+                            file_name = fetch_response.json().get("file_name", "")
+                            search_results = fetch_response.json().get("results", "")
+
+                            st.success(f"✅ File '{file_name}' searched successfully!")
+                            st.subheader("🔍 Search Results:")
+                            
+                            # Display the search results
+                            st.text_area("Results", value=search_results, height=300)
+                        
+                        else:
+                            st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("⚠️ No embedded files found.")
+    else:
+        st.error("❌ Failed to fetch embedded files.")
+

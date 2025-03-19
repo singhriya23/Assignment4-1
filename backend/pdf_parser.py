@@ -1,7 +1,6 @@
 import fitz  # PyMuPDF
 from markdownify import markdownify as md
 import re
-import os
 import io
 from fastapi import UploadFile
 from gcs_utils import upload_to_gcs  # Import the upload function

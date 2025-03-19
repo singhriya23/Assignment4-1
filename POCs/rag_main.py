@@ -6,7 +6,7 @@ from summarization_gpt import summarize_text_gpt
 from summarization_gemini import summarize_text_gemini
 from summarization_deepseek import summarize_text_deepseek
 from summarization_claude import summarize_text_claude
-from rag_qa import answer_question_gpt  # ✅ Uses Pinecone for retrieval & GPT-4o for response
+from backend.rag_qa import answer_question_gpt  # ✅ Uses Pinecone for retrieval & GPT-4o for response
 from pinecone_indexing import index_markdown_data  # ✅ Index Markdown in Pinecone
 
 app = FastAPI()

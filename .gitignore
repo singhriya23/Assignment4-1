@@ -16,3 +16,10 @@ pip-delete-this-directory.txt
 # Logs and cache
 *.log
 *.cache/
+backend/starry-tracker-449020-f2-98e23064a0ed.json
+/backend/__pycache__
+/backend/__pycache__
+/backend/__pycache__
+backend/__pycache__/gcs_utils.cpython-313.pyc
+/backend/__pycache__
+*.pyc
