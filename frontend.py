@@ -7,28 +7,11 @@ FASTAPI_URL = "http://127.0.0.1:8000"
 st.title("📄 PDF Processing & Q/A Service")
 
 # Sidebar navigation
-option = st.sidebar.radio("Choose an action:", ["📂 List PDFs in GCS", "📤 Upload & Parse PDF", "📜 Parse GCS PDF"])
+option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file"])
 
-# ✅ List PDFs in GCS
-if option == "📂 List PDFs in GCS":
-    st.subheader("🗂 List PDF Files from GCS")
-
-    if st.button("🔄 Refresh List"):
-        response = requests.get(f"{FASTAPI_URL}/list_pdf_files")
-        
-        if response.status_code == 200:
-            files = response.json().get("files", [])
-            if files:
-                st.write("### Available PDFs in GCS:")
-                for file in files:
-                    st.write(f"📄 {file}")
-            else:
-                st.warning("No PDFs found in GCS.")
-        else:
-            st.error("❌ Failed to fetch PDF list.")
 
 # ✅ Upload & Parse a PDF
-if option == "📤 Upload & Parse PDF":
+if option == "Upload & Parse PDF":
     st.subheader("📤 Upload a PDF File for Parsing")
 
     uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
@@ -64,7 +47,7 @@ if option == "📤 Upload & Parse PDF":
                 st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
 
 # ✅ Parse a Selected PDF from GCS
-elif option == "📜 Parse GCS PDF":
+elif option == "Parse GCS PDF":
     st.subheader("📜 Select a PDF from GCS for Parsing")
 
     # Fetch the list of files from the FastAPI endpoint
@@ -105,3 +88,136 @@ elif option == "📜 Parse GCS PDF":
     else:
         # Show an error if the list of PDFs cannot be fetched
         st.error("❌ Failed to fetch PDF list.")
+
+
+
+# Your existing logic to select the chunking method
+elif option == "Select chunking method":
+    st.subheader("📜 Select an extracted PDF from GCS for chunking")
+
+    # Fetch the list of extracted files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_extracted_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+        if files:
+            # Dropdown to select a file
+            selected_file = st.selectbox("Choose a file:", files)
+
+            # Dropdown to select chunking strategy
+            strategy = st.selectbox("Select chunking strategy:", ["fixed", "sentence", "sliding"])
+
+            # Process file button
+            if st.button("Process File"):
+                with st.spinner("Processing..."):
+                    fetch_response = requests.get(
+                        f"{FASTAPI_URL}/fetch_file/",
+                        params={"file_name": selected_file, "strategy": strategy}
+                    )
+
+                    if fetch_response.status_code == 200:
+                        st.success(f"✅ File '{selected_file}' processed successfully with {strategy} chunking!")
+                    else:
+                        st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("No files found in GCS.")
+    else:
+        st.error("Failed to fetch extracted files.")
+
+elif option == "Select chunked output file":
+    st.subheader("📂 Select a Chunked Output File")
+
+    # Fetch the list of chunked files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_chunked_output_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+
+        if files:
+            # Dropdown to select a chunked file
+            selected_file = st.selectbox("Choose a file:", files)
+
+            # Button to fetch file content and trigger embeddings
+            if st.button("🔍 Fetch & Generate Embeddings"):
+                with st.spinner(f"Fetching content and generating embeddings for '{selected_file}'..."):
+                    # Fetch file content and initiate embedding generation
+                    fetch_response = requests.get(
+                        f"{FASTAPI_URL}/fetch_file_content",
+                        params={"file_name": selected_file}
+                    )
+
+                    if fetch_response.status_code == 200:
+                        # Display the embedding initiation message
+                        st.success(f"✅ Embedding generation initiated for '{selected_file}'!")
+
+                        # Display file name and status
+                        file_name = fetch_response.json().get("file_name", "")
+                        status = fetch_response.json().get("status", "")
+                        st.write(f"**File:** {file_name}")
+                        st.write(f"**Status:** {status}")
+                    
+                    else:
+                        st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("No chunked files found.")
+    else:
+        st.error("Failed to fetch chunked files.")
+
+
+elif option == "Select embedded output file":
+    st.subheader("📂 Select Embedded Output File")
+
+    # Fetch the list of embedded files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_embedded_output_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+        
+        if files:
+            # Dropdown to select an embedded file
+            selected_file = st.selectbox("Choose an embedded file:", files)
+
+            # Text input for the search query
+            query = st.text_input("🔍 Enter your search query:", "")
+
+            # Optional quarter filter
+            quarter_filter = st.text_input("📅 Enter quarter filter (optional):", "")
+
+            # Number of top results to fetch
+            top_n = st.slider("🔢 Number of top results:", min_value=1, max_value=10, value=5)
+
+            # Button to fetch and search the file content
+            if st.button("📜 Fetch & Search Embedded File Content"):
+                if not query.strip():
+                    st.warning("⚠️ Please enter a search query.")
+                else:
+                    with st.spinner(f"Fetching and searching in '{selected_file}'..."):
+                        
+                        # Fetch content of the selected file with the query
+                        fetch_response = requests.get(
+                            f"{FASTAPI_URL}/fetch_embedded_file_content",
+                            params={
+                                "file_name": selected_file,
+                                "query": query,
+                                "quarter_filter": quarter_filter if quarter_filter.strip() else None,
+                                "top_n": top_n
+                            }
+                        )
+
+                        if fetch_response.status_code == 200:
+                            file_name = fetch_response.json().get("file_name", "")
+                            search_results = fetch_response.json().get("results", "")
+
+                            st.success(f"✅ File '{file_name}' searched successfully!")
+                            st.subheader("🔍 Search Results:")
+                            
+                            # Display the search results
+                            st.text_area("Results", value=search_results, height=300)
+                        
+                        else:
+                            st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
+        else:
+            st.warning("⚠️ No embedded files found.")
+    else:
+        st.error("❌ Failed to fetch embedded files.")
+
