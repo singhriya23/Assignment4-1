@@ -2,21 +2,19 @@ import os
 import requests
 import asyncio
 from dotenv import load_dotenv
-from google.cloud import storage  # Google Cloud Storage SDK
 from playwright.async_api import async_playwright
 
-# Load Google Cloud credentials from .env file
+# Load environment variables
 load_dotenv()
 
 # NVIDIA Financial Reports Page
 URL = "https://investor.nvidia.com/financial-info/financial-reports/default.aspx"
 
-# Updated Google Cloud Storage Details
-GCS_BUCKET_NAME = "pdfstorage_1"  # New GCS bucket
-GCS_FOLDER_NAME = "pdf_files"     # New folder inside the bucket
+# Directory to save downloaded PDFs locally
+DOWNLOAD_DIR = "downloaded_pdfs"
 
-# Initialize Google Cloud Storage Client
-storage_client = storage.Client()
+# Create the download directory if it doesn't exist
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 async def get_pdf_links():
     """Extracts 10-Q and 10-K PDF links from NVIDIA's financial page using Playwright."""
@@ -43,29 +41,27 @@ async def get_pdf_links():
 
     return pdf_links
 
-async def download_and_upload_pdfs(pdf_links):
-    """Downloads PDFs and uploads them to Google Cloud Storage (GCS)."""
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-
+async def download_pdfs_locally(pdf_links):
+    """Downloads PDFs and saves them locally."""
     for pdf_url in pdf_links:
         pdf_name = pdf_url.split("/")[-1]
+        local_path = os.path.join(DOWNLOAD_DIR, pdf_name)
 
         print(f"📥 Downloading {pdf_name}...")
         response = requests.get(pdf_url, stream=True)
         if response.status_code == 200:
-            # Upload to GCS
-            blob = bucket.blob(f"{GCS_FOLDER_NAME}/{pdf_name}")
-            blob.upload_from_string(response.content, content_type="application/pdf")
-            
-            print(f"✅ Uploaded {pdf_name} to GCS: gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_NAME}/{pdf_name}")
+            # Save the PDF locally
+            with open(local_path, "wb") as f:
+                f.write(response.content)
+            print(f"✅ Saved {pdf_name} to {local_path}")
         else:
             print(f"❌ Failed to download {pdf_url}")
 
 async def main():
     pdf_links = await get_pdf_links()
     if pdf_links:
-        print(f"✅ Found {len(pdf_links)} PDF links. Uploading to GCS...")
-        await download_and_upload_pdfs(pdf_links)
+        print(f"✅ Found {len(pdf_links)} PDF links. Downloading locally...")
+        await download_pdfs_locally(pdf_links)
     else:
         print("❌ No PDFs found.")
 

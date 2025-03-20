@@ -6,7 +6,7 @@ from chunking import process_and_upload_chunked_data
 from gen_embedding import process_and_store_embeddings
 from io import BytesIO
 import json
-from search import search_from_content
+from search import search_from_content,generate_response
 import os
 
 app = FastAPI()
@@ -168,42 +168,35 @@ def list_files_in_embedded_folder():
 @app.get("/fetch_embedded_file_content")
 def search_embedded_file(file_name: str, query: str, quarter_filter: str = None, top_n: int = 5):
     """
-    Fetch content of an embedded file, process it, and return the search results as plain text.
+    Fetch content of an embedded file, process it, and return the search results along with the GPT-40-mini response.
     """
     try:
         if not query:
             raise HTTPException(status_code=400, detail="Query parameter is required.")
 
-        # Fetch file content from GCS
-        content = get_file_content(f"{file_name}")
+        # ✅ Fetch file content from GCS
+        content = get_file_content(file_name)
 
-        # Parse the JSON content into a Python list
+        # ✅ Parse the JSON content into a Python dictionary
         embedded_data = json.loads(content)
 
-        # Perform the search using the content directly
+        # ✅ Perform the search directly on the content
         results = search_from_content(
-            content=embedded_data,
+            content=embedded_data,      
             query=query,
             quarter_filter=quarter_filter,
             top_n=top_n
         )
+   
+        # ✅ Generate the GPT-40-mini response using retrieved chunks
+        gpt_response = generate_response(query, results)
 
-        # Format the results as plain text
-        if results:
-            result_text = "\n🔍 **Top Matching Text Chunks:**\n"
-            for idx, res in enumerate(results, start=1):
-                result_text += f"\n📄 **Result {idx}:**\n"
-                result_text += f"- **Text:** {res['text']}\n"
-                result_text += f"- **Quarter:** {res['quarter']}\n"
-                result_text += f"- **Filename:** {res['filename']}\n"
-                result_text += f"- **Similarity Score:** {round(res['embedding'][0], 4)}\n"
-        else:
-            result_text = "❌ No matching results found."
-
+        # ✅ Return the results and the GPT response directly
         return {
             "file_name": file_name,
             "query": query,
-            "results": result_text
+            "results": results,  # Directly return the raw results from search.py
+            "gpt_response": gpt_response  # Include the GPT-generated response
         }
 
     except Exception as e:

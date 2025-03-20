@@ -5,63 +5,85 @@ import openai
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
+# Load environment variables and configure API
 load_dotenv(dotenv_path=".env")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
 def get_embedding(text):
-    """Generates embedding using OpenAI model."""
+    """Generates an embedding using OpenAI's API."""
     response = openai.embeddings.create(input=[text], model="text-embedding-ada-002")
     return response.data[0].embedding
-
 
 def cosine_similarity(vec1, vec2):
     """Compute cosine similarity between two vectors."""
     return np.dot(vec1, vec2) / (norm(vec1) * norm(vec2))
 
-
 def search_from_content(content, query, quarter_filter=None, top_n=5):
     """
-    Perform search on the provided content.
-    - content: List of embedded chunks (in-memory)
-    - query: Search query
-    - quarter_filter: Filter results by quarter
-    - top_n: Number of top results to return
+    Perform a search on the provided content.
+    
+    The function filters data by quarter (if specified), generates the query embedding,
+    and then calculates similarity scores against each chunk.
     """
-    # Filter content by quarter if specified
-    filtered_data = [item for item in content if quarter_filter is None or item["quarter"] == quarter_filter]
+    if isinstance(content, dict):
+        content = [content]
 
-    # Generate query embedding
+    # Filter by quarter, if applicable
+    filtered_data = [
+        item for item in content
+        if quarter_filter is None or item.get("quarter") == quarter_filter
+    ]
+    
+    # Generate embedding for the query
     query_embedding = get_embedding(query)
 
-    # Calculate similarity scores
     results = []
     for item in filtered_data:
-        similarity = cosine_similarity(query_embedding, item["embedding"])
-        results.append((similarity, item))
+        # Extract and parse the "text" field
+        text_data = item.get("text", "{}")
+        try:
+            parsed_text = json.loads(text_data)  # Parse JSON string
+            chunks = parsed_text.get("chunks", [])  # Extract chunks
+        except json.JSONDecodeError:
+            print("❌ Failed to decode JSON from text field!")
+            chunks = []
 
-    # Sort results by similarity
-    results.sort(reverse=True, key=lambda x: x[0])
-    top_results = [item for _, item in results[:top_n]]
+        if not chunks:
+            print("⚠️ No chunks found for item:", item)
+            continue
 
-    return top_results
+        # Process each chunk
+        for chunk in chunks:
+            chunk_embedding = get_embedding(chunk)  # Generate embedding per chunk
+            similarity = cosine_similarity(query_embedding, chunk_embedding)
+            results.append({"similarity": similarity, "chunk": chunk})
 
+    # Sort by similarity and return the top N results
+    results = sorted(results, key=lambda x: x["similarity"], reverse=True)
+    print("🔍 Search Results:", results[:top_n])
+    return results[:top_n]
 
-if __name__ == "__main__":
-    # Load the embedded content for testing
-    with open("embeddings.json", "r") as f:
-        content = json.load(f)
+def generate_response(query, retrieved_chunks):
+    """
+    Generates a response using GPT-40-mini with the retrieved chunks as context.
+    """
+    if not retrieved_chunks:
+        return "No relevant information found."
 
-    # Get query input from the user
-    query = input("\n🔍 Enter your search query: ")
+    # Combine retrieved text chunks as context
+    context = "\n".join(chunk["chunk"] for chunk in retrieved_chunks)
+    prompt = f"""You are an AI assistant. Use the following context to answer the question:
 
-    # Optional: Ask for a quarter filter
-    quarter_filter = input("📅 Enter quarter filter (or press Enter to skip): ").strip() or None
+{context}
 
-    # Perform search
-    results = search_from_content(content, query, quarter_filter)
+Question: {query}
+Answer:"""
 
-    print("\n🔍 **Top Matching Text Chunks:**\n")
-    for res in results:
-        print(f"- {res['text']}\n")
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response.choices[0].message.content

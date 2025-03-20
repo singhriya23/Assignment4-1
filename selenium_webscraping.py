@@ -7,35 +7,37 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+from io import BytesIO
+from backend.gcs_utils import upload_to_gcs  # Importing GCS upload function
 
 # Configuration
 BASE_URL = "https://investor.nvidia.com/financial-info/quarterly-results/default.aspx"
-DOWNLOAD_FOLDER = "./nvidia_pdfs"  # Local folder to store PDFs
 
-def download_pdf(url, save_path):
+def download_pdf_to_gcs(url, gcs_path):
     """
-    Downloads a PDF from the given URL and saves it to the specified path.
+    Downloads a PDF from the given URL and uploads it directly to GCS.
     """
     try:
         response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raise error for bad responses (4xx, 5xx)
-        with open(save_path, "wb") as pdf_file:
-            for chunk in response.iter_content(chunk_size=1024):
-                pdf_file.write(chunk)
-        print(f"✅ Successfully downloaded: {save_path}")
+        response.raise_for_status()  # Raise an exception for 4xx/5xx errors
+
+        # Wrap bytes in BytesIO to create a file-like object
+        pdf_bytes = BytesIO(response.content)
+        pdf_bytes.seek(0)  # Ensure pointer is at the beginning
+
+        # Upload the PDF to GCS
+        gcs_file_url = upload_to_gcs(pdf_bytes, gcs_path)
+        print(f"✅ Uploaded to GCS: {gcs_file_url}")
+
     except requests.exceptions.RequestException as e:
         print(f"❌ Error downloading {url}: {str(e)}")
 
 def get_nvidia_quarterly_pdfs(year):
     """
-    Scrapes NVIDIA's investor relations page for 10-K/10-Q reports of a given year
-    and downloads the PDFs locally.
+    Scrapes NVIDIA's investor relations page for 10-K/10-Q reports for a given year
+    and uploads the PDFs to GCS.
     """
     print(f"📌 Starting NVIDIA financial report scraper for year: {year}")
-    
-    # Ensure the download folder exists
-    year_folder = os.path.join(DOWNLOAD_FOLDER, str(year))
-    os.makedirs(year_folder, exist_ok=True)
 
     # Selenium options for headless Chrome
     chrome_options = Options()
@@ -120,16 +122,16 @@ def get_nvidia_quarterly_pdfs(year):
 
                     # Check if it's a 10-K or 10-Q report
                     if "10-k" in link_text.lower() or "10-q" in link_text.lower():
-                        pdf_filename = f"{year}_{quarter}_{link_text.replace(' ', '_').replace('/', '_')}.pdf"
-                        pdf_path = os.path.join(year_folder, pdf_filename)
-                        print(f"📥 Downloading: {href} -> {pdf_path}")
+                        # GCS file path format: "nvidia_reports/{year}/{quarter}/{filename}.pdf"
+                        gcs_filename = f"pdf_files/{year}/{quarter}/{link_text.replace(' ', '_').replace('/', '_')}.pdf"
+                        print(f"📥 Uploading to GCS: {gcs_filename}")
 
-                        # Download the PDF
-                        download_pdf(href, pdf_path)
+                        # Download and upload PDF to GCS
+                        download_pdf_to_gcs(href, gcs_filename)
             except Exception as e:
                 print(f"❌ Error processing quarter accordion: {str(e)}")
 
-        print(f"📂 Completed downloading PDFs for {year}")
+        print(f"📂 Completed uploading PDFs for {year}")
 
     except Exception as e:
         print(f"❌ Error scraping NVIDIA reports for {year}: {str(e)}")

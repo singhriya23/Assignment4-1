@@ -7,7 +7,7 @@ FASTAPI_URL = "http://127.0.0.1:8000"
 st.title("📄 PDF Processing & Q/A Service")
 
 # Sidebar navigation
-option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file"])
+option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file","Pinecone DB"])
 
 
 # ✅ Upload & Parse a PDF
@@ -105,7 +105,7 @@ elif option == "Select chunking method":
             selected_file = st.selectbox("Choose a file:", files)
 
             # Dropdown to select chunking strategy
-            strategy = st.selectbox("Select chunking strategy:", ["fixed", "sentence", "sliding"])
+            strategy = st.selectbox("Select chunking strategy:", ["fixed", "sentence", "sliding", "recursive","langchain"])
 
             # Process file button
             if st.button("Process File"):
@@ -206,13 +206,24 @@ elif option == "Select embedded output file":
 
                         if fetch_response.status_code == 200:
                             file_name = fetch_response.json().get("file_name", "")
-                            search_results = fetch_response.json().get("results", "")
+                            search_results = fetch_response.json().get("results", [])
+                            gpt_response = fetch_response.json().get("gpt_response", "")
 
                             st.success(f"✅ File '{file_name}' searched successfully!")
                             st.subheader("🔍 Search Results:")
-                            
-                            # Display the search results
-                            st.text_area("Results", value=search_results, height=300)
+
+                            # Display search results
+                            if search_results:
+                                for idx, result in enumerate(search_results, start=1):
+                                    st.subheader(f"📄 Result {idx}")
+                                    st.write(f"**Similarity Score:** {round(result['similarity'], 4)}")
+                                    st.write(f"**Text Chunk:**\n{result['chunk']}\n")
+                            else:
+                                st.warning("❌ No matching results found.")
+
+                            # Display GPT response
+                            st.subheader("🤖 GPT-40-mini Response:")
+                            st.write(gpt_response if gpt_response else "❌ No response generated.")
                         
                         else:
                             st.error(f"❌ Error: {fetch_response.json().get('detail', 'Unknown error')}")
@@ -221,3 +232,12 @@ elif option == "Select embedded output file":
     else:
         st.error("❌ Failed to fetch embedded files.")
 
+elif option == "Pinecone DB":
+      # Fetch the list of extracted files from the backend
+    response = requests.get(f"{FASTAPI_URL}/list_chunked_output_files")
+
+    if response.status_code == 200:
+        files = response.json().get("files", [])
+        if files:
+            # Dropdown to select a file
+            selected_file = st.selectbox("Choose a file:", files)
