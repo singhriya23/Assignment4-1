@@ -1,6 +1,4 @@
 import os
-import re
-import boto3
 import requests
 import asyncio
 from dotenv import load_dotenv
@@ -9,25 +7,19 @@ from playwright.async_api import async_playwright
 # Load AWS credentials from .env file
 load_dotenv()
 
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_REGION")
-S3_BUCKET_NAME = "nvidia-data-bucket"
-
 # NVIDIA Financial Reports URL
 URL = "https://investor.nvidia.com/financial-info/financial-reports/default.aspx"
 
 # Define years and quarters to scrape
-YEARS_TO_SCRAPE = ["2022", "2023", "2024", "2025"]
-QUARTERS = ["First Quarter", "Second Quarter", "Third Quarter", "Fourth Quarter"]
+YEARS_TO_SCRAPE = ["2022"]
+QUARTERS = ["First Quarter"]
 
-# Initialize Boto3 S3 Client
-s3_client = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION
-)
+# Define the local directory to store PDFs
+LOCAL_STORAGE_DIR = "nvidia_financial_reports"
+
+# Create the local directory if it doesn't exist
+if not os.path.exists(LOCAL_STORAGE_DIR):
+    os.makedirs(LOCAL_STORAGE_DIR)
 
 async def get_pdf_links(page, year, quarter):
     """Scrapes 10-K and 10-Q PDFs for a given year and quarter."""
@@ -35,7 +27,7 @@ async def get_pdf_links(page, year, quarter):
 
     # **Select the year in the dropdown**
     dropdown = page.locator("select")
-    await dropdown.wait_for(state="visible", timeout=15000)
+    await dropdown.wait_for(state="visible", timeout=30000)
     await dropdown.select_option(year)
     await page.wait_for_load_state("networkidle")  # Ensure reload completes
 
@@ -71,22 +63,22 @@ async def get_pdf_links(page, year, quarter):
 
     return pdf_links
 
-async def download_and_upload_pdfs(pdf_links, year, quarter):
-    """Downloads PDFs and uploads them to AWS S3 under `financial-reports/{YEAR}/`."""
+async def download_pdfs_locally(pdf_links, year, quarter):
+    """Downloads PDFs and saves them locally under `nvidia_financial_reports/{YEAR}/{QUARTER}/`."""
+    local_quarter_dir = os.path.join(LOCAL_STORAGE_DIR, year, quarter.replace(' ', '_'))
+    if not os.path.exists(local_quarter_dir):
+        os.makedirs(local_quarter_dir)
+
     for pdf_url in pdf_links:
         pdf_name = pdf_url.split("/")[-1]
 
         print(f"📥 Downloading {pdf_name} for {year} - {quarter}...")
         response = requests.get(pdf_url, stream=True)
         if response.status_code == 200:
-            s3_key = f"financial-reports/{year}/{quarter.replace(' ', '_')}/{pdf_name}"
-            s3_client.put_object(
-                Bucket=S3_BUCKET_NAME,
-                Key=s3_key,
-                Body=response.content,
-                ContentType="application/pdf"
-            )
-            print(f"✅ Uploaded {pdf_name} to S3 in {s3_key}")
+            local_pdf_path = os.path.join(local_quarter_dir, pdf_name)
+            with open(local_pdf_path, 'wb') as f:
+                f.write(response.content)
+            print(f"✅ Saved {pdf_name} locally in {local_pdf_path}")
         else:
             print(f"❌ Failed to download {pdf_url}")
 
@@ -103,7 +95,7 @@ async def main():
             for quarter in QUARTERS:
                 pdf_links = await get_pdf_links(page, year, quarter)
                 if pdf_links:
-                    await download_and_upload_pdfs(pdf_links, year, quarter)
+                    await download_pdfs_locally(pdf_links, year, quarter)
                 else:
                     print(f"❌ No PDFs found for {quarter} {year}.")
 
