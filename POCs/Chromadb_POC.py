@@ -1,31 +1,51 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+import os
 from langchain.vectorstores import Chroma
-from Langchain_Chunking import langchain_chunking  # Import chunking function from Langchain_Chunking.py
-
-vector_store = Chroma(
-    collection_name="nvidia-reports",  # Name of the collection in ChromaDB
-    embedding_function=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2"
-),
-persist_directory="./chroma_langchain_db"
-  )  # Initialize ChromaDB client
-
-pdf_path = "10K10Q-Quarter-1-2025.pdf"
-chunks = langchain_chunking(pdf_path)
-
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
+from Langchain_Chunking import langchain_chunking  # Import chunking function
 
-documents = [Document(page_content=chunk) for chunk in chunks]
-vector_store.add_documents(documents)
+def index_multiple_mds_chroma(md_paths, collection_name="nvidia-reports", persist_directory="./chroma_langchain_db"):
+    """
+    Index multiple Markdown (.md) files into ChromaDB.
 
-print("Successfully stored chunks in ChromaDB using Hugging Face embeddings.")
+    Args:
+        md_paths (list): List of Markdown file paths.
+        collection_name (str): Name of the ChromaDB collection.
+        persist_directory (str): Directory where the ChromaDB database is stored.
 
-def query_chroma(query, top_k=3):
-    results = vector_store.similarity_search(query, k=top_k)
-    return results
+    Returns:
+        Chroma: The indexed ChromaDB vector store.
+    """
 
-query = "What was NVIDIA's revenue in Q1 2025?"
-results = query_chroma(query)
+    # ✅ Validate file extensions (Only .md files allowed)
+    for md_path in md_paths:
+        if not md_path.endswith(".md"):
+            raise ValueError(f"❌ Invalid file format: {md_path}. Only Markdown (.md) files are allowed.")
 
-print("🔍 Top Results:")
-for res in results:
-    print(res.page_content)
+    # ✅ Initialize ChromaDB
+    vector_store = Chroma(
+        collection_name=collection_name,
+        embedding_function=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2"),
+        persist_directory=persist_directory
+    )
+
+    # ✅ Process each Markdown file and insert into ChromaDB
+    all_documents = []
+    for md_path in md_paths:
+        print(f"📄 Processing Markdown File: {md_path}")
+        chunks = langchain_chunking(md_path)
+
+        # Convert to LangChain Documents
+        documents = [Document(page_content=chunk, metadata={"source": md_path}) for chunk in chunks]
+        all_documents.extend(documents)
+
+        print(f"✅ {len(chunks)} chunks created from {md_path}")
+
+    # ✅ Insert all documents into ChromaDB
+    if all_documents:
+        vector_store.add_documents(all_documents)
+        print(f"✅ Successfully indexed {len(all_documents)} chunks into ChromaDB ({collection_name}).")
+    else:
+        print("⚠️ No chunks were created. Check if Markdown files contain text.")
+
+    return vector_store
