@@ -47,4 +47,9 @@ https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcg
 
 https://docs.google.com/document/d/1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/edit?tab=t.0#heading=h.qytj5xmqxyaj
 
+**Architecture Diagrams**
+
+![rag_architecture](https://github.com/user-attachments/assets/75fb779e-bf0b-4819-bc3b-1a421fc9fef0)
+
+
 
