@@ -28,9 +28,11 @@ Frontend.py - the final frontend code.
 
 # Assignment4-2
 **Overview**
+
 This is the continuation of the 4th Assignment part 1, where we have implemented multiple chunking strategies while using LLMs, when the user asks a question relevant to the context, the most relevant chunk will be selected, and if the user is asking a question that is not relevant to the context present in the database within PineCone and ChromaDb, the most irrelevant chunk will be selected and at the end will be mentioned as "Context not Available".
 
 **Contributions**
+
 Kaushik - Web scraping of NVIDIA website to get PDFs which are fed to Docling to generate Markowns and Web scraping of NVIDIA website to get PDF links which are fed to Mistral for advanced text Extraction. Building 2 Airflow DAGS for this process.
 
 Arvind - 
@@ -38,9 +40,11 @@ Arvind -
 Riya - 
 
 **CodeLabs**
+
 https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#0
 
 **Google Docs**
+
 https://docs.google.com/document/d/1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/edit?tab=t.0#heading=h.qytj5xmqxyaj
 
 
