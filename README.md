@@ -32,7 +32,9 @@ This is the continuation of the 4th Assignment part 1, where we have implemented
 
 **Contributions**
 Kaushik - Web scraping of NVIDIA website to get PDFs which are fed to Docling to generate Markowns and Web scraping of NVIDIA website to get PDF links which are fed to Mistral for advanced text Extraction. Building 2 Airflow DAGS for this process.
+
 Arvind - 
+
 Riya - 
 
 **CodeLabs**
