@@ -3,8 +3,11 @@
 This is an extension to the first assignment wherein we use Large Language Models to Summarize the previously parsed document. Also, we have the feature to ask questions about the document. This is done by using RAG methodology.
 
 **Contribution**
+
 Kaushik - Deepseek, Claude Models (Summarization and QA), Diagrams.
+
 Arvind - GPT-4o-mini, Gemini, Groq Models(Summarization and QA), Codelabs, Sample POCS for frontend and backend
+
 Riya - Frontend, Backend and Deployment.
 
 Codelabs - [https://docs.google.com/document/d/1MiDw0Wc_P5yULQMNc03unchqYNCEI25uHvXQqc18LRQ/edit?tab=t.0#heading=h.31ankfht5pc0
