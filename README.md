@@ -35,9 +35,9 @@ This is the continuation of the 4th Assignment part 1, where we have implemented
 
 Kaushik - Web scraping of NVIDIA website to get PDFs which are fed to Docling to generate Markowns and Web scraping of NVIDIA website to get PDF links which are fed to Mistral for advanced text Extraction. Building 2 Airflow DAGS for this process.
 
-Arvind - 
+Arvind - Created the RAG Pipeline for Pinecone and Chromadb by creating indexing and embeddings and storing the chunks in PineCone DB and Chroma DB, where the user can ask questions using the LLMs ChatGPt and Google Gemini. The chunks with the best cosine similarity will be provided to the user depending on the context of the question the user is asking. Deployed the Backend code using Docker Compose and created a Docker Image.
 
-Riya - 
+Riya - Created a Manual RAG Pipeline with no Vector Database and the chunks are stored locally depending on the document we are using, here also we are using ChatGPt and Google Gemini as LLMs to respond by calling their API Keys. The chunks with the best cosine similarity will be taken depending on the context the user is asking for and the least relevant chunks will be given when the context of the chunks do not match with the question the user is asking. Also Integrated all the Airflow DAGS, storing the data in GCS Buckets, Creating RAGS for 3 different Pipelines using FASTAPI backend by creating multiple endpoints. Also, we have provided visualization using the Streamlit app, where the user can ask questions and select the chunking strategy and the LLMs he/she wants to use. The Streamlit part is deployed into the Streamlit Cloud.
 
 **CodeLabs**
 
