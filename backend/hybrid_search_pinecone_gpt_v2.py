@@ -7,7 +7,7 @@ from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv  # Load environment variables
 
 # ✅ Load .env file
-load_dotenv(dotenv_path="POCs/.env")
+load_dotenv(dotenv_path=".env")
 
 # ✅ Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # GPT-4o
@@ -90,6 +90,4 @@ def query_pinecone_with_gpt(query, index_name="json-index", region="us-east-1", 
 
     return response.choices[0].message.content
 
-# ✅ Example Usage
-query_result = query_pinecone_with_gpt("What is the revenue for Q1 2025?")
-print("\n💡 Answer:\n", query_result)
+

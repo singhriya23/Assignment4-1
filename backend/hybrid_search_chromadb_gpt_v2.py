@@ -5,7 +5,7 @@ from langchain.vectorstores import Chroma
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv  
 
-load_dotenv(dotenv_path="POCs/.env")  # ✅ Load .env file
+load_dotenv(dotenv_path=".env")  # ✅ Load .env file
 
 # ✅ Load API Key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
