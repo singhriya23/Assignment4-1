@@ -13,6 +13,9 @@ from Pinecone_v2 import index_json_content
 from chromadb_v2 import index_json_chromadb
 from hybrid_search_pinecone_gpt_v2 import query_pinecone_with_gpt
 from hybrid_search_chromadb_gpt_v2 import query_chromadb_with_gpt
+from new_docling import process_pdf
+import shutil
+from pathlib import Path
 
 app = FastAPI()
 
@@ -31,17 +34,42 @@ def list_files_in_pdf_folder():
 async def upload_and_parse_pdf(file: UploadFile = File(...), parse_method: str = Query("pymupdf", enum=["pymupdf", "mistral", "docling"])):
     """Upload a PDF, parse it using a selected method, and convert it to Markdown."""
     try:
+        # Create a temporary directory to save the uploaded PDF
+        temp_dir = Path("temp_pdfs")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save the uploaded file to a temporary path
+        temp_pdf_path = temp_dir / file.filename
+        with open(temp_pdf_path, "wb") as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+
+        markdown_content = None  # Initialize a variable to hold the markdown result
+
         if parse_method == "pymupdf":
-            markdown_content = await pdf_to_markdown(file)
+            markdown_content = await pdf_to_markdown(temp_pdf_path)
         elif parse_method == "mistral":
+            # Add your Mistral code here
             print("awaiting code")
         elif parse_method == "docling":
-            print("awaiting code")
+            # Call the process_pdf function for docling parsing
+            output_dir = temp_dir / "output"
+            process_pdf(temp_pdf_path, output_dir)
+            
+            # After processing, you can return the content of the markdown files created
+            markdown_files = list(output_dir.glob("*.md"))
+            if markdown_files:
+                with open(markdown_files[0], "r") as md_file:
+                    markdown_content = md_file.read()
+
         else:
             raise HTTPException(status_code=400, detail="Invalid parse method selected.")
+
+        # Clean up the temporary PDF after processing
+        os.remove(temp_pdf_path)
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error while parsing the PDF: {str(e)}")
-    
+
     return {"markdown_content": markdown_content}
 
 # Helper function to handle BytesIO and pass the original file name
