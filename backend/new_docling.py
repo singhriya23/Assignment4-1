@@ -3,11 +3,12 @@ import time
 from pathlib import Path
 from docling_core.types.doc import ImageRefMode
 from docling.document_converter import DocumentConverter
+from gcs_utils import upload_to_gcs  # Assuming you have a function for GCS upload
+from io import BytesIO
 
-def process_pdf(pdf_path, output_dir):
+def process_pdf(pdf_path, output_dir, gcs_output_bucket="pdfstorage_1"):
     """Process a single PDF file and save its Markdown output."""
     logging.basicConfig(level=logging.INFO)
-
     input_doc_path = Path(pdf_path)
     output_dir = Path(output_dir)
 
@@ -32,13 +33,20 @@ def process_pdf(pdf_path, output_dir):
         conv_res.document.save_as_markdown(md_filename_referenced, image_mode=ImageRefMode.REFERENCED)
         logging.info(f"Saved Markdown with referenced images: {md_filename_referenced}")
 
+        # Upload the markdown files to GCS (using file-like objects)
+        with open(md_filename_embedded, 'rb') as file_embedded:
+            file_stream_embedded = BytesIO(file_embedded.read())  # Convert file to BytesIO
+            upload_to_gcs(file_stream_embedded, f"outputs/{md_filename_embedded.name}")
+
+        with open(md_filename_referenced, 'rb') as file_referenced:
+            file_stream_referenced = BytesIO(file_referenced.read())  # Convert file to BytesIO
+            upload_to_gcs(file_stream_referenced, f"output/{md_filename_referenced.name}")
+
+        # Clean up the local markdown files after upload if needed
+        md_filename_embedded.unlink()
+        md_filename_referenced.unlink()
+
         end_time = time.time() - start_time
-        logging.info(f"Document converted and saved in {end_time:.2f} seconds. Files stored in: {output_dir}")
+        logging.info(f"Document converted and saved in {end_time:.2f} seconds. Files uploaded to GCS bucket: {gcs_output_bucket}")
     except Exception as e:
         logging.error(f"Failed to process {pdf_path}: {e}")
-
-# Example usage
-if __name__ == "__main__":
-    pdf_path = "/Users/kaushikj/Desktop/Assignment4-2/pdf_reports/10K10-Q2-2024.pdf"  # Replace with the actual PDF file path
-    output_dir = "/Users/kaushikj/Desktop/Assignment4-2/pdfs-done"  # Replace with your desired output folder
-    process_pdf(pdf_path, output_dir)

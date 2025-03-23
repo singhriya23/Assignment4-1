@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query,Form
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pdf_parser import pdf_to_markdown  # Your existing pdf_to_markdown function
 from gcs_utils import list_files_in_gcs, download_file_from_gcs,get_file_content
@@ -8,6 +9,13 @@ from io import BytesIO
 import json
 from search import search_from_content,generate_response
 import os
+from Pinecone_v2 import index_json_content
+from chromadb_v2 import index_json_chromadb
+from hybrid_search_pinecone_gpt_v2 import query_pinecone_with_gpt
+from hybrid_search_chromadb_gpt_v2 import query_chromadb_with_gpt
+from new_docling import process_pdf
+import shutil
+from pathlib import Path
 
 app = FastAPI()
 
@@ -26,17 +34,42 @@ def list_files_in_pdf_folder():
 async def upload_and_parse_pdf(file: UploadFile = File(...), parse_method: str = Query("pymupdf", enum=["pymupdf", "mistral", "docling"])):
     """Upload a PDF, parse it using a selected method, and convert it to Markdown."""
     try:
+        # Create a temporary directory to save the uploaded PDF
+        temp_dir = Path("temp_pdfs")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save the uploaded file to a temporary path
+        temp_pdf_path = temp_dir / file.filename
+        with open(temp_pdf_path, "wb") as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+
+        markdown_content = None  # Initialize a variable to hold the markdown result
+
         if parse_method == "pymupdf":
-            markdown_content = await pdf_to_markdown(file)
+            markdown_content = await pdf_to_markdown(temp_pdf_path)
         elif parse_method == "mistral":
+            # Add your Mistral code here
             print("awaiting code")
         elif parse_method == "docling":
-            print("awaiting code")
+            # Call the process_pdf function for docling parsing
+            output_dir = temp_dir / "output"
+            process_pdf(temp_pdf_path, output_dir)
+            
+            # After processing, you can return the content of the markdown files created
+            markdown_files = list(output_dir.glob("*.md"))
+            if markdown_files:
+                with open(markdown_files[0], "r") as md_file:
+                    markdown_content = md_file.read()
+
         else:
             raise HTTPException(status_code=400, detail="Invalid parse method selected.")
+
+        # Clean up the temporary PDF after processing
+        os.remove(temp_pdf_path)
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error while parsing the PDF: {str(e)}")
-    
+
     return {"markdown_content": markdown_content}
 
 # Helper function to handle BytesIO and pass the original file name
@@ -76,9 +109,9 @@ async def parse_gcs_pdf(file_name: str = Query(...), parse_method: str = Query("
         if parse_method == "pymupdf":
             markdown_content = await pdf_to_markdown_from_bytes(file_like_object, file_name)
         elif parse_method == "mistral":
-            markdown_content = await pdf_to_markdown_mistral(file_like_object, file_name)
+            print("awaiting code")
         elif parse_method == "docling":
-            markdown_content = await pdf_to_markdown_docling(file_like_object, file_name)
+           print("awaiting code")
         else:
             raise HTTPException(status_code=400, detail="Invalid parse method selected.")
         
@@ -201,3 +234,72 @@ def search_embedded_file(file_name: str, query: str, quarter_filter: str = None,
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process and search: {e}")
+    
+@app.post("/index-json/")
+async def index_json(
+    file_path: str = Form(...),
+    index_name: str = Form("json-index"),
+    region: str = Form("us-east-1")
+):
+    """
+    Endpoint to index an existing JSON file from a file path into Pinecone.
+    """
+    try:
+        # ✅ Fetch content from GCS (returns a string)
+        content = get_file_content(file_path)
+
+        # ✅ Index the JSON content into Pinecone
+        vector_store = index_json_content(
+            json_content=content,  # Pass the file content (as string) to index_json_content
+            index_name=index_name,
+            region=region
+        )
+
+        return JSONResponse(
+            content={"message": f"✅ Successfully indexed {file_path} into {index_name}."},
+            status_code=200
+        )
+
+    except HTTPException as http_error:
+        raise http_error  # Re-raise HTTPException to return it to the client
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ Failed to index: {str(e)}")
+
+
+@app.post("/index-json-chroma/")
+async def index_json_chroma(
+    file_path: str = Form(...)
+):
+    """
+    Endpoint to index an existing JSON file from a file path into Pinecone.
+    """
+    try:
+        # ✅ Fetch content from GCS (returns a string)
+        content = get_file_content(file_path)
+
+        # ✅ Index the JSON content into Pinecone
+        vector_store = index_json_chromadb(
+            json_content=content  # Pass the file content (as string) to index_json_content
+        )
+
+        return JSONResponse(
+            content={"message": f"✅ Successfully indexed {file_path} ."},
+            status_code=200
+        )
+
+    except HTTPException as http_error:
+        raise http_error  # Re-raise HTTPException to return it to the client
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ Failed to index: {str(e)}")
+    
+@app.post("/ask")
+def ask_question(query: str):
+    result = query_pinecone_with_gpt(query)
+    return {"query": query, "response": result}
+
+@app.post("/ask-chromadb")
+def ask_question_chromadb(query: str):
+    result = query_chromadb_with_gpt(query)
+    return {"query": query, "response": result}
