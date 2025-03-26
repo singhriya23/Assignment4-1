@@ -1,9 +1,6 @@
 import io
 import json
-import base64
-from pathlib import Path
 from mistralai import Mistral, DocumentURLChunk
-from mistralai.models import OCRResponse
 from dotenv import load_dotenv
 import os
 from gcs_utils import upload_to_gcs  # Import GCS upload function
@@ -13,7 +10,7 @@ load_dotenv()
 api_key = os.getenv("MISTRAL_API_KEY")
 client = Mistral(api_key=api_key)
 
-def process_pdf(pdf_url: str):
+def process_pdf_mistral(pdf_url: str):
     """Processes a PDF, extracts OCR data, converts to Markdown, and uploads to GCS."""
     
     print(f"Processing {pdf_url} ...")
@@ -35,8 +32,10 @@ def process_pdf(pdf_url: str):
     # Convert Markdown to bytes for upload
     markdown_bytes = io.BytesIO(final_markdown.encode("utf-8"))
 
-    # Upload to GCS
-    md_filename = f"outputs/extracted_pdf.md"
+    # Dynamic file name (using the PDF URL name for the markdown file)
+    md_filename = f"outputs/{pdf_url.split('/')[-1].replace('.pdf', '.md')}"
+
+    # Upload the Markdown bytes to GCS
     gcs_file_url = upload_to_gcs(markdown_bytes, md_filename)
 
     print(f"Markdown uploaded to GCS: {gcs_file_url}")

@@ -7,7 +7,7 @@ FASTAPI_URL = "http://127.0.0.1:8000"
 st.title("📄 PDF Processing & Q/A Service")
 
 # Sidebar navigation
-option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file","PineconeDB Indexing","ChromaDB Indexing","PineCone:Ask a Question","ChromaDB:Ask a Question"])
+option = st.sidebar.radio("Choose an action:", ["Upload & Parse PDF", "Parse GCS PDF","Select chunking method","Select chunked output file","Select embedded output file","PineconeDB Indexing","ChromaDB Indexing","PineCone:Ask a Question","ChromaDB:Ask a Question","Ask a Research Question", "View Reports"])
 
 
 # ✅ Upload & Parse a PDF
@@ -20,7 +20,7 @@ if option == "Upload & Parse PDF":
     # Select the parsing method
     parse_method = st.selectbox(
         "Select Parsing Method",
-        ["pymupdf", "mistral", "docling"],
+        ["pymupdf","mistral", "docling"],
         index=0
     )
 
@@ -42,17 +42,9 @@ if option == "Upload & Parse PDF":
                 )
             else:  # If no file, send URL
                 response = requests.post(
-                    f"{FASTAPI_URL}/upload_and_parse_pdf/?parse_method={parse_method}&pdf_url={pdf_url}",
+                    f"{FASTAPI_URL}/process-pdf/",
+                    json={"pdf_url": pdf_url}  # Send the PDF URL to the backend
                 )
-
-            # Handle the response
-            if response.status_code == 200:
-                markdown_content = response.json().get("markdown_content", "")
-                st.success(f"✅ PDF parsed successfully using **{parse_method}**!")
-                st.subheader("📜 Extracted Markdown Content:")
-                st.markdown(markdown_content)
-            else:
-                st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
 
 # ✅ Parse a Selected PDF from GCS
 elif option == "Parse GCS PDF":
@@ -96,8 +88,6 @@ elif option == "Parse GCS PDF":
     else:
         # Show an error if the list of PDFs cannot be fetched
         st.error("❌ Failed to fetch PDF list.")
-
-
 
 # Your existing logic to select the chunking method
 elif option == "Select chunking method":
@@ -170,7 +160,6 @@ elif option == "Select chunked output file":
             st.warning("No chunked files found.")
     else:
         st.error("Failed to fetch chunked files.")
-
 
 elif option == "Select embedded output file":
     st.subheader("📂 Select Embedded Output File")
@@ -340,3 +329,35 @@ elif option == "ChromaDB:Ask a Question":
             except Exception as e:
                 st.error(f"❌ Exception: {str(e)}")
 
+# ✅ Ask a Research Question
+elif option == "Ask a Research Question":
+    st.subheader("❓ Research Query Input")
+
+    # User input for query
+    query = st.text_area("Enter your research question about NVIDIA:", "")
+
+    if st.button("🚀 Get Insights"):
+        if not query.strip():
+            st.warning("Please enter a research question before proceeding.")
+        else:
+            # Send request to FastAPI backend
+            response = requests.post(
+                f"{FASTAPI_URL}/ask_question",
+                json={"query": query}
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                st.subheader("📑 Research Report")
+                st.write(f"**Query:** {result['query']}")
+
+                # Display real-time insights (Web Search results)
+                if "web_results" in result and result["web_results"]:
+                    st.subheader("🌍 Latest Web Insights")
+                    for news in result["web_results"]:
+                        st.markdown(f"🔗 [{news['title']}]({news['link']})")
+                else:
+                    st.write("No recent news found for this query.")
+
+            else:
+                st.error("Failed to fetch insights. Please try again.")

@@ -16,6 +16,10 @@ from hybrid_search_chromadb_gpt_v2 import query_chromadb_with_gpt
 from new_docling import process_pdf
 import shutil
 from pathlib import Path
+from mistral_ocr_local import process_pdf_mistral
+from typing import Dict
+from langraph import graph
+
 
 app = FastAPI()
 
@@ -31,46 +35,44 @@ def list_files_in_pdf_folder():
     return {"files": files}
 
 @app.post("/upload_and_parse_pdf/")
-async def upload_and_parse_pdf(file: UploadFile = File(...), parse_method: str = Query("pymupdf", enum=["pymupdf", "mistral", "docling"])):
-    """Upload a PDF, parse it using a selected method, and convert it to Markdown."""
+def upload_and_parse_pdf(
+    file: UploadFile = File(...), 
+    parse_method: str = Query("pymupdf", enum=["pymupdf", "docling"])
+):
+    """Upload a PDF, parse it using a selected method, and return Markdown content."""
     try:
-        # Create a temporary directory to save the uploaded PDF
         temp_dir = Path("temp_pdfs")
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save the uploaded file to a temporary path
         temp_pdf_path = temp_dir / file.filename
         with open(temp_pdf_path, "wb") as temp_file:
             shutil.copyfileobj(file.file, temp_file)
 
-        markdown_content = None  # Initialize a variable to hold the markdown result
-
         if parse_method == "pymupdf":
-            markdown_content = await pdf_to_markdown(temp_pdf_path)
-        elif parse_method == "mistral":
-            # Add your Mistral code here
-            print("awaiting code")
+            markdown_content = pdf_to_markdown(temp_pdf_path)
         elif parse_method == "docling":
-            # Call the process_pdf function for docling parsing
-            output_dir = temp_dir / "output"
-            process_pdf(temp_pdf_path, output_dir)
-            
-            # After processing, you can return the content of the markdown files created
-            markdown_files = list(output_dir.glob("*.md"))
-            if markdown_files:
-                with open(markdown_files[0], "r") as md_file:
-                    markdown_content = md_file.read()
+            output_dir = Path("processed_markdown")
+            markdown_path = process_pdf(temp_pdf_path, output_dir)
+ 
 
-        else:
-            raise HTTPException(status_code=400, detail="Invalid parse method selected.")
+        os.remove(temp_pdf_path)  # Clean up temporary PDF
 
-        # Clean up the temporary PDF after processing
-        os.remove(temp_pdf_path)
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error while parsing the PDF: {str(e)}")
 
-    return {"markdown_content": markdown_content}
+    return {"message": "PDF successfully processed", "markdown": markdown_content}
+
+class PDFRequest(BaseModel):
+    pdf_url: str
+
+@app.post("/process-pdf/")
+async def process_pdf_mistral(request: PDFRequest) -> Dict[str, str]:
+    try:
+        # Call the process_pdf_mistral function
+        result = process_pdf_mistral(request.pdf_url)
+        return {"gcs_url": result["gcs_url"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 # Helper function to handle BytesIO and pass the original file name
 async def pdf_to_markdown_from_bytes(file: BytesIO, filename: str):
@@ -127,7 +129,6 @@ def list_files_in_pdf_folder():
     files = list_files_in_gcs(folder_name)
     return {"files": files}
 
-
 @app.get("/fetch_file/")
 async def fetch_file_from_gcs(
     file_name: str = Query(None, description="File name to fetch"),
@@ -161,7 +162,6 @@ async def fetch_file_from_gcs(
     except Exception as e:
         # Handle any unexpected errors
         raise HTTPException(status_code=500, detail=f"Error fetching file: {e}")
-
 
 @app.get("/list_chunked_output_files")
 def list_files_in_chunked_folder():
@@ -266,7 +266,6 @@ async def index_json(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ Failed to index: {str(e)}")
 
-
 @app.post("/index-json-chroma/")
 async def index_json_chroma(
     file_path: str = Form(...)
@@ -303,3 +302,25 @@ def ask_question(query: str):
 def ask_question_chromadb(query: str):
     result = query_chromadb_with_gpt(query)
     return {"query": query, "response": result}
+
+
+# Define request schema
+class QueryRequest(BaseModel):
+    query: str
+
+# Endpoint to ask a research question
+@app.post("/ask_question")
+def ask_question(request: QueryRequest):
+    """
+    Process user research question.
+    Currently, it only calls the Web Search Agent.
+    Future: Extend this to Snowflake and RAG Agents.
+    """
+    result = graph.invoke({"query": request.query})
+    return {
+        "query": request.query,
+        "web_results": result["web_results"]
+    }
+
+
+

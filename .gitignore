@@ -27,3 +27,8 @@ backend/__pycache__/gcs_utils.cpython-313.pyc
 /backend/__pycache__
 backend/__pycache__/gcs_utils.cpython-313.pyc
 backend/__pycache__/main.cpython-313.pyc
+backend/chroma_langchain_db/82a6b4da-2537-44e4-9a8e-f9c46ff92ec5/header.bin
+backend/chroma_langchain_db/82a6b4da-2537-44e4-9a8e-f9c46ff92ec5/length.bin
+backend/chroma_langchain_db/82a6b4da-2537-44e4-9a8e-f9c46ff92ec5/link_lists.bin
+backend/chroma_langchain_db/chroma.sqlite3
+backend/chroma_langchain_db/chroma.sqlite3
