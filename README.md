@@ -6,9 +6,9 @@ This is an extension to the first assignment wherein we use Large Language Model
 
 Kaushik - Deepseek, Claude Models (Summarization and QA), Diagrams.
 
-Arvind - GPT-4o-mini, Gemini, Groq Models(Summarization and QA), Codelabs, Sample POCS for frontend and backend
+Arvind - GPT-4o-mini, Gemini, Groq Models(Summarization and QA)
 
-Riya - Frontend, Backend and Deployment.
+Riya - Frontend, Backend and Deployment,Codelabs
 
 Codelabs - [https://docs.google.com/document/d/1MiDw0Wc_P5yULQMNc03unchqYNCEI25uHvXQqc18LRQ/edit?tab=t.0#heading=h.31ankfht5pc0
 ](https://codelabs-preview.appspot.com/?file_id=1MiDw0Wc_P5yULQMNc03unchqYNCEI25uHvXQqc18LRQ#3)
@@ -41,7 +41,7 @@ Kaushik - Web scraping of NVIDIA website to get PDFs which are fed to Docling to
 Arvind - Created the RAG Pipeline for Pinecone and Chromadb by creating indexing and embeddings and storing the chunks in PineCone DB and Chroma DB, where the user can ask questions using the LLMs ChatGPt and Google Gemini. The chunks with the best cosine similarity will be provided to the user depending on the context of the question the user is asking. Deployed the Backend code using Docker Compose and created a Docker Image.
 
 Riya - Created a Manual RAG Pipeline with no Vector Database and the chunks are stored locally depending on the document we are using, here also we are using ChatGPt and Google Gemini as LLMs to respond by calling their API Keys. The chunks with the best cosine similarity will be taken depending on the context the user is asking for and the least relevant chunks will be given when the context of the chunks do not match with the question the user is asking. Also Integrated all the Airflow DAGS, storing the data in GCS Buckets, Creating RAGS for 3 different Pipelines using FASTAPI backend by creating multiple endpoints. Also, we have provided visualization using the Streamlit app, where the user can ask questions and select the chunking strategy and the LLMs he/she wants to use. The Streamlit part is deployed into the Streamlit Cloud.
-
+**Riya Contribution: 4 Chunking methods,Manual Embdedding,Frontend,Backend,Codelabs**
 **CodeLabs**
 
 https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#0
