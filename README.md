@@ -44,7 +44,7 @@ Riya - Created a Manual RAG Pipeline with no Vector Database and the chunks are 
 **Riya Contribution: 4 Chunking methods,Manual Embdedding,Frontend,Backend,Codelabs**
 **CodeLabs**
 
-https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#0
+https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#3
 
 **Google Docs**
 
