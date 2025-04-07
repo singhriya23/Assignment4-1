@@ -2,7 +2,8 @@ import streamlit as st
 import requests
 
 # FastAPI Backend URL
-FASTAPI_URL = "http://127.0.0.1:8000"
+#FASTAPI_URL = "http://127.0.0.1:8000"
+FASTAPI_URL = "https://assignment-4-redeploy-343736309329.us-central1.run.app"
 
 st.title("📄 PDF Processing & Q/A Service")
 
