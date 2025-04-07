@@ -32,6 +32,9 @@ Frontend.py - the final frontend code.
 # Assignment4-2
 **Overview**
 
+**Frontend** - https://assignment4-1-u4u9su5yqgytu6wxesfwtu.streamlit.app/
+**Backend** - https://assignment-4-redeploy-343736309329.us-central1.run.app
+
 This is the continuation of the 4th Assignment part 1, where we have implemented multiple chunking strategies while using LLMs, when the user asks a question relevant to the context, the most relevant chunk will be selected, and if the user is asking a question that is not relevant to the context present in the database within PineCone and ChromaDb, the most irrelevant chunk will be selected and at the end will be mentioned as "Context not Available".
 
 **Contributions**
