@@ -49,11 +49,11 @@ Riya - I created a manual RAG pipeline with no vector database; the chunks are s
 
 **CodeLabs**
 
-https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#3
+https://codelabs-preview.appspot.com/?file_id=1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/#0
 
 **Google Docs**
 
-https://docs.google.com/document/d/1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/edit?tab=t.0#heading=h.qytj5xmqxyaj
+https://docs.google.com/document/d/1ZXzyDzWTK9nD04Mf43efhiRO9CnKPUpcgm4mFg_-Lz0/edit?tab=t.0
 
 **Architecture Diagrams**
 
